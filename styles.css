@@ -1,0 +1,226 @@
+/* GitHubスター急増ビューア
+   Modern Web Guidance の適用ポイント:
+   - 色は oklch で定義し、light-dark() でライト/ダーク両対応
+   - スクロールバーは scrollbar-color
+   - グリッドは Container Queries でコンテナ幅に応じて列数を変える
+   - カードの並び替え・入退場は View Transitions（group-element-transitions ガイド）
+   - prefers-reduced-motion では遷移アニメーションを無効化（motion ガイド） */
+
+:root {
+  color-scheme: light dark;
+  --bg: light-dark(oklch(0.97 0.01 250), oklch(0.18 0.02 250));
+  --surface: light-dark(oklch(1 0 0), oklch(0.24 0.02 250));
+  --surface-2: light-dark(oklch(0.94 0.015 250), oklch(0.29 0.025 250));
+  --text: light-dark(oklch(0.25 0.02 250), oklch(0.92 0.01 250));
+  --muted: light-dark(oklch(0.5 0.02 250), oklch(0.7 0.02 250));
+  --accent: light-dark(oklch(0.55 0.18 255), oklch(0.75 0.14 230));
+  --accent-strong: light-dark(oklch(0.45 0.2 20), oklch(0.72 0.17 25));
+  --border: light-dark(oklch(0.88 0.01 250), oklch(0.35 0.02 250));
+  --warn-bg: light-dark(oklch(0.93 0.06 85), oklch(0.3 0.05 85));
+  scrollbar-color: var(--accent) var(--bg);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font-family: system-ui, -apple-system, "Hiragino Sans", "Noto Sans JP", sans-serif;
+  line-height: 1.6;
+}
+
+a { color: var(--accent); }
+a:focus-visible, button:focus-visible {
+  outline: 3px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.site-header, .site-footer {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 0;
+}
+
+.site-header h1 { font-size: 1.75rem; margin: 0 0 0.5rem; text-wrap: balance; }
+.subtitle { color: var(--muted); margin: 0; }
+
+.layout {
+  max-width: 72rem;
+  margin: 0 auto;
+  padding: 1rem;
+  container-type: inline-size;
+  container-name: layout;
+}
+
+.controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem 1.5rem;
+  margin-bottom: 1rem;
+}
+
+.control-group { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+
+.toggle {
+  font: inherit;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text);
+  cursor: pointer;
+}
+.toggle.is-active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: oklch(0.99 0 0);
+  font-weight: 700;
+}
+
+.note { color: var(--muted); font-size: 0.9rem; }
+.caveat {
+  background: var(--warn-bg);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+/* ランキングのグリッド: Container Queries で列数を変える */
+.ranking {
+  list-style: none;
+  margin: 1rem 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+}
+@container layout (min-width: 620px) {
+  .ranking { grid-template-columns: repeat(2, 1fr); }
+}
+@container layout (min-width: 980px) {
+  .ranking { grid-template-columns: repeat(3, 1fr); }
+}
+
+.card {
+  /* group-element-transitions: 全カード共通のクラスで遷移ロジックを共有する */
+  view-transition-class: ranking-card;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  padding: 1rem;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 11rem;
+}
+.card.is-first { border-color: var(--accent-strong); border-width: 2px; }
+
+.card-rank {
+  font-weight: 800;
+  color: var(--accent-strong);
+  font-size: 0.95rem;
+}
+.card-name { font-size: 1.05rem; font-weight: 700; overflow-wrap: anywhere; }
+.card-gain { font-size: 1.6rem; font-weight: 800; margin: 0.25rem 0; }
+.card-gain small { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
+.card-meta { display: flex; gap: 0.75rem; flex-wrap: wrap; color: var(--muted); font-size: 0.85rem; }
+.lang-chip {
+  background: var(--surface-2);
+  border-radius: 999px;
+  padding: 0.05rem 0.6rem;
+  font-size: 0.8rem;
+}
+.card-desc { font-size: 0.9rem; margin: 0.5rem 0 0.75rem; }
+.card-detail-btn {
+  font: inherit;
+  font-size: 0.85rem;
+  padding: 0.3rem 0.8rem;
+  border-radius: 0.5rem;
+  border: 1px solid var(--border);
+  background: var(--surface-2);
+  color: var(--text);
+  cursor: pointer;
+}
+
+/* group-element-transitions: 共有の遷移ロジック */
+::view-transition-group(.ranking-card) {
+  animation-duration: 0.45s;
+  animation-timing-function: ease-in-out;
+}
+/* 追加された要素（:only-child の new）は ease-out で入る */
+::view-transition-new(.ranking-card):only-child {
+  animation-name: card-in;
+  animation-duration: 0.35s;
+  animation-timing-function: ease-out;
+}
+/* 削除される要素（:only-child の old）は ease-in で出る */
+::view-transition-old(.ranking-card):only-child {
+  animation-name: card-out;
+  animation-duration: 0.3s;
+  animation-timing-function: ease-in;
+}
+@keyframes card-in {
+  from { opacity: 0; translate: 0 12px; }
+}
+@keyframes card-out {
+  to { opacity: 0; translate: 0 -8px; }
+}
+
+/* motion ガイド: 動きを減らす設定では遷移を無効化 */
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-group(*),
+  ::view-transition-old(*),
+  ::view-transition-new(*) {
+    animation: none !important;
+  }
+}
+
+.extras { margin-top: 1.5rem; }
+.extras h2 { font-size: 1.1rem; }
+.extras-list { list-style: none; padding: 0; display: grid; gap: 0.5rem; }
+.extras-list li {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.9rem;
+  font-size: 0.9rem;
+}
+
+.site-footer { padding-bottom: 2rem; color: var(--muted); font-size: 0.9rem; }
+.site-footer h2 { color: var(--text); font-size: 1.1rem; }
+.site-footer code { background: var(--surface-2); padding: 0.05rem 0.35rem; border-radius: 0.3rem; }
+
+/* Popover API による詳細表示 */
+.detail {
+  border: 1px solid var(--border);
+  border-radius: 0.75rem;
+  background: var(--surface);
+  color: var(--text);
+  padding: 1.25rem;
+  max-width: min(26rem, 90vw);
+  box-shadow: 0 1rem 3rem oklch(0 0 0 / 0.3);
+}
+.detail::backdrop { background: oklch(0 0 0 / 0.45); }
+.detail-close {
+  float: inline-end;
+  font: inherit;
+  border: none;
+  background: var(--surface-2);
+  color: var(--text);
+  border-radius: 999px;
+  width: 2rem; height: 2rem;
+  cursor: pointer;
+}
+.detail-rank { color: var(--accent-strong); font-weight: 800; margin: 0; }
+.detail-name { margin: 0.25rem 0; overflow-wrap: anywhere; }
+.detail-gain { font-size: 1.4rem; font-weight: 800; margin: 0.25rem 0; }
+.detail-meta { display: flex; gap: 1.25rem; margin: 0.5rem 0; }
+.detail-meta dt { color: var(--muted); font-size: 0.8rem; }
+.detail-meta dd { margin: 0; font-weight: 700; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

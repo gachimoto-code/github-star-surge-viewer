@@ -1,10 +1,21 @@
 # GitHubスター急増ビューア
 
-GitHubでスターが急増したリポジトリのランキングを、集計方式の異なる2つのデータセットで切り替えて眺めるビューアです。単一のHTMLファイル（`index.html`）で動くので、ダウンロードしてブラウザで開くだけで使えます。GitHub Pagesでそのまま公開することもできます。
+GitHubでスターが急増したリポジトリのランキングを、集計方式の異なる2つのデータセットで切り替えて眺めるビューアです。ビルド不要の素のHTML/CSS/JavaScriptで書かれていて、`index.html` をブラウザで開くだけで動きます。GitHub Pagesでそのまま公開することもできます。
 
 note連載「GitHubスター急増top10」の試作号（2026年11月13日公開）でスター増分1位だった **GoogleChrome/modern-web-guidance**（Apache-2.0）のガイダンスを適用して構築した実験作です。
 
 - 記事: [GitHubスター急増top10（2026年11月13日）― 24時間で星を集めたリポジトリ](https://note.com/fujimotec/n/nb267bde89d9a)
+
+## ファイル構成
+
+| ファイル | 役割 |
+|---|---|
+| `index.html` | ページ構造 |
+| `styles.css` | 配色（oklch / light-dark）、Container Queries、View Transitionsの定義など |
+| `data.js` | 2つのデータセット（数値は取得・集計時点の確定値） |
+| `app.js` | 描画、並び替え（moveBefore）、データセット切替、Popover詳細表示 |
+
+ES Modulesではなく通常の `<script>` で読み込んでいるのは、`file://` で直接開いても動くようにするためです。
 
 ## データセット
 
@@ -20,7 +31,7 @@ GH Archiveのスターイベント（WatchEvent）を、日本時間2026年11月
 
 ## 適用したModern Web Guidance
 
-ガイダンスは `npx modern-web-guidance@latest` のCLIで取得し、ガイド本文の実装指示に従いました。
+ガイダンスは `npx modern-web-guidance@latest` のCLIで取得し、ガイド本文の実装指示に従いました。「モダン」の考え方は、フレームワークの新しさではなく、ブラウザ標準の機能で済むことは標準で済ませることです。このビューアの並び替えアニメーション、ポップオーバー、幅対応レイアウト、テーマ配色は、少し前ならライブラリや自前実装が必要でしたが、今はすべてWeb標準の機能で書けます。
 
 - **group-element-transitions**: カードごとに固有の `view-transition-name`、共通の `view-transition-class`（`::view-transition-group(.ranking-card)`）、`:only-child` による入場（ease-out）・退場（ease-in）アニメーション
 - **dynamic-sort**: 並び替え・データセット切替でDOMを作り直さず、既存ノードを `moveBefore()` で並び替え。リスト要素へのスコープ付き `startViewTransition` を優先し、`document.startViewTransition` にフォールバック。結果は `aria-live` で通知
@@ -29,10 +40,11 @@ GH Archiveのスターイベント（WatchEvent）を、日本時間2026年11月
 
 ## 使い方
 
-`index.html` をブラウザで開くだけです。データセット切替トグル、増分順／総スター順の並び替え、カードをタップ（クリック）すると詳細がポップオーバーで開きます。
+`index.html` をブラウザで開くだけです。データセット切替トグル、増分順／総スター順の並び替え、カードの「詳細を見る」で詳細がポップオーバーで開きます。
 
 ## 備考
 
 - 数値はいずれも取得・集計時点のもので、その後も増え続けます
 - スター数は人気の目安であり、品質を保証するものではありません
 - 各リポジトリの利用にあたっては、それぞれのライセンスをご確認ください
+- 初版は単一HTMLファイルの書き出し版でしたが、編集できるソース一式に置き換えました
