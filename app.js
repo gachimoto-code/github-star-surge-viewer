@@ -124,9 +124,11 @@
     Array.prototype.slice.call(rankingEl.children).forEach(function (child) {
       if (nodes.indexOf(child) === -1) child.remove();
     });
-    // dynamic-sort: 既存ノードを moveBefore で並び替える（再生成しない）
+    // dynamic-sort: 既存ノードは moveBefore で並び替える（再生成しない）。
+    // ただし moveBefore は「既にDOMにいるノード」を動かすためのAPIで、
+    // 未挿入のノードには使えない（例外になる）ため、初回挿入は appendChild を使う。
     nodes.forEach(function (node) {
-      if (typeof rankingEl.moveBefore === "function") {
+      if (node.parentNode === rankingEl && typeof rankingEl.moveBefore === "function") {
         rankingEl.moveBefore(node, null);
       } else {
         rankingEl.appendChild(node);
