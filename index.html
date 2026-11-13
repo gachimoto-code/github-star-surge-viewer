@@ -1,0 +1,824 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="color-scheme" content="light dark" />
+    <link rel="icon" href="data:," />
+    <title>GitHubスター急増ビューア</title>
+    <style>
+      /* ============ Palette: oklch + light-dark() ============ */
+      :root {
+        color-scheme: light dark;
+        --bg:        light-dark(oklch(0.965 0.006 250), oklch(0.155 0.014 258));
+        --bg-raise:  light-dark(oklch(0.99 0.003 250),  oklch(0.195 0.016 258));
+        --surface:   light-dark(oklch(1 0 0),           oklch(0.215 0.017 258));
+        --surface-2: light-dark(oklch(0.945 0.008 250), oklch(0.26 0.018 258));
+        --ink:       light-dark(oklch(0.24 0.02 255),   oklch(0.93 0.008 250));
+        --ink-soft:  light-dark(oklch(0.42 0.018 255),  oklch(0.78 0.012 250));
+        --muted:     light-dark(oklch(0.52 0.015 255),  oklch(0.66 0.012 250));
+        --line:      light-dark(oklch(0.88 0.01 250),   oklch(0.32 0.016 258));
+        --star:      light-dark(oklch(0.58 0.145 70),   oklch(0.84 0.135 88));
+        --star-soft: light-dark(oklch(0.94 0.05 80),    oklch(0.30 0.05 85));
+        --accent:    light-dark(oklch(0.52 0.13 245),   oklch(0.74 0.11 235));
+        --accent-ink:light-dark(oklch(0.99 0 0),        oklch(0.16 0.02 250));
+        --warn-bg:   light-dark(oklch(0.95 0.045 85),   oklch(0.28 0.045 80));
+        --warn-line: light-dark(oklch(0.78 0.09 80),    oklch(0.45 0.07 80));
+        --warn-ink:  light-dark(oklch(0.36 0.07 70),    oklch(0.88 0.07 85));
+        --scroll-thumb: light-dark(oklch(0.72 0.015 250), oklch(0.38 0.016 258));
+        scrollbar-color: var(--scroll-thumb) var(--bg);
+      }
+
+      * { box-sizing: border-box; }
+      html { scrollbar-color: var(--scroll-thumb) var(--bg); }
+      body {
+        margin: 0;
+        background: var(--bg);
+        color: var(--ink);
+        font-family: "Hiragino Kaku Gothic ProN", "Hiragino Sans", "Noto Sans JP",
+          "Yu Gothic UI", "Yu Gothic", system-ui, sans-serif;
+        font-size: 16px;
+        line-height: 1.6;
+        -webkit-font-smoothing: antialiased;
+      }
+      button { min-height: 2.5rem; font: inherit; }
+      a { color: var(--accent); }
+      :focus-visible {
+        outline: 2.5px solid var(--accent);
+        outline-offset: 2px;
+        border-radius: 6px;
+      }
+      .num { font-variant-numeric: tabular-nums; }
+
+      .wrap { max-width: 1120px; margin: 0 auto; padding: 20px 16px 48px; }
+
+      /* ============ Header ============ */
+      header.top { padding: 10px 0 4px; }
+      .series-line {
+        margin: 0 0 6px;
+        font-size: 0.82rem;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+      }
+      h1 {
+        margin: 0;
+        font-size: clamp(1.55rem, 5.2vw, 2.3rem);
+        line-height: 1.25;
+        font-weight: 800;
+        letter-spacing: 0.01em;
+      }
+      h1 .star-glyph { color: var(--star); }
+      .lede {
+        margin: 10px 0 0;
+        color: var(--ink-soft);
+        font-size: 0.95rem;
+        max-width: 44em;
+      }
+
+      /* ============ Controls ============ */
+      .controls {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 14px 28px;
+        margin: 22px 0 6px;
+        padding: 14px 16px;
+        background: var(--bg-raise);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+      }
+      .control-group { display: flex; flex-direction: column; gap: 7px; }
+      .control-label { font-size: 0.78rem; font-weight: 700; color: var(--muted); letter-spacing: 0.05em; }
+      .segmented {
+        display: inline-flex;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 3px;
+        gap: 3px;
+        max-width: 100%;
+        flex-wrap: wrap;
+      }
+      .segmented button {
+        border: 0;
+        background: transparent;
+        color: var(--ink-soft);
+        border-radius: 7px;
+        padding: 6px 14px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        font-weight: 600;
+        line-height: 1.35;
+        min-height: 2.5rem;
+      }
+      .segmented button small { display: block; font-size: 0.72rem; font-weight: 500; color: var(--muted); }
+      .segmented button[aria-pressed="true"] {
+        background: var(--accent);
+        color: var(--accent-ink);
+      }
+      .segmented button[aria-pressed="true"] small { color: var(--accent-ink); opacity: 0.85; }
+      .segmented button:hover:not([aria-pressed="true"]) { color: var(--ink); }
+
+      /* ============ Dataset meta ============ */
+      .dataset-meta { margin: 16px 0 4px; }
+      .dataset-meta h2 { margin: 0 0 4px; font-size: 1.15rem; font-weight: 800; }
+      .source-note { margin: 0; color: var(--ink-soft); font-size: 0.88rem; max-width: 56em; }
+      .warn-note {
+        margin: 12px 0 0;
+        padding: 10px 14px;
+        background: var(--warn-bg);
+        border: 1px solid var(--warn-line);
+        border-radius: 10px;
+        color: var(--warn-ink);
+        font-size: 0.88rem;
+        font-weight: 600;
+      }
+      .summary-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px 22px;
+        margin: 12px 0 0;
+        font-size: 0.88rem;
+        color: var(--muted);
+      }
+      .summary-row b { color: var(--ink); font-size: 1.02rem; }
+      .summary-row .hl { color: var(--star); }
+
+      /* ============ Card grid: Container Queries ============ */
+      .grid-wrap { container-type: inline-size; margin-top: 14px; }
+      .grid {
+        display: grid;
+        grid-template-columns: 1fr;
+        gap: 12px;
+        list-style: none;
+        margin: 0;
+        padding: 0;
+      }
+      @container (min-width: 580px) {
+        .grid { grid-template-columns: repeat(2, 1fr); }
+      }
+      @container (min-width: 920px) {
+        .grid { grid-template-columns: repeat(3, 1fr); }
+      }
+
+      /* ============ Card ============ */
+      .card {
+        view-transition-class: ranking-card;
+        content-visibility: auto;
+        contain-intrinsic-size: auto 190px;
+        background: var(--surface);
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        padding: 14px 16px 13px;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        transition: border-color 0.15s ease, background 0.15s ease;
+      }
+      .card:hover { border-color: var(--accent); }
+      .card-top {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 10px;
+      }
+      .rank {
+        flex: none;
+        min-width: 2.1rem;
+        height: 2.1rem;
+        padding: 0 6px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 9px;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        font-weight: 800;
+        font-size: 1rem;
+      }
+      .card.is-top .rank {
+        background: var(--star-soft);
+        border-color: var(--star);
+        color: var(--star);
+      }
+      .delta { text-align: right; line-height: 1.1; }
+      .delta .delta-value {
+        font-size: 1.55rem;
+        font-weight: 800;
+        color: var(--star);
+        letter-spacing: -0.01em;
+      }
+      .delta .delta-label { display: block; font-size: 0.7rem; color: var(--muted); margin-top: 2px; }
+      .delta-bar {
+        height: 5px;
+        border-radius: 99px;
+        background: var(--surface-2);
+        overflow: hidden;
+      }
+      .delta-bar i {
+        display: block;
+        height: 100%;
+        background: var(--star);
+        border-radius: 99px;
+      }
+      .repo-name {
+        margin: 0;
+        font-size: 1.02rem;
+        font-weight: 700;
+        line-height: 1.4;
+        overflow-wrap: anywhere;
+      }
+      .repo-name a { color: var(--ink); text-decoration: none; }
+      .repo-name a:hover { color: var(--accent); text-decoration: underline; }
+      .repo-owner { color: var(--muted); font-weight: 500; }
+      .desc {
+        margin: 0;
+        color: var(--ink-soft);
+        font-size: 0.88rem;
+        line-height: 1.55;
+        display: -webkit-box;
+        -webkit-line-clamp: 3;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+      }
+      .card-foot {
+        margin-top: auto;
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 6px 12px;
+        font-size: 0.82rem;
+        color: var(--muted);
+      }
+      .lang-chip {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 2px 9px;
+        border: 1px solid var(--line);
+        border-radius: 99px;
+        background: var(--surface-2);
+        color: var(--ink-soft);
+        font-weight: 600;
+        font-size: 0.78rem;
+      }
+      .lang-dot { width: 9px; height: 9px; border-radius: 50%; flex: none; }
+      .stat { display: inline-flex; align-items: center; gap: 4px; }
+      .stat svg { flex: none; opacity: 0.75; }
+      .extra-tag {
+        font-size: 0.7rem;
+        font-weight: 700;
+        color: var(--warn-ink);
+        background: var(--warn-bg);
+        border: 1px solid var(--warn-line);
+        border-radius: 6px;
+        padding: 1px 7px;
+      }
+      .card.is-extra { padding: 11px 14px 10px; opacity: 0.94; }
+      .card.is-extra .delta .delta-value { font-size: 1.2rem; }
+      .card.is-extra .desc { -webkit-line-clamp: 2; font-size: 0.84rem; }
+      .detail-hint { font-size: 0.74rem; color: var(--muted); margin-left: auto; }
+
+      /* ============ View Transitions (group-element-transitions) ============ */
+      ::view-transition-group(.ranking-card) {
+        animation-duration: 0.45s;
+        animation-timing-function: cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      ::view-transition-old(.ranking-card):only-child {
+        animation: card-exit 0.24s ease-in both;
+      }
+      ::view-transition-new(.ranking-card):only-child {
+        animation: card-enter 0.34s ease-out both;
+      }
+      @keyframes card-exit {
+        to { opacity: 0; transform: scale(0.95) translateY(8px); }
+      }
+      @keyframes card-enter {
+        from { opacity: 0; transform: scale(0.95) translateY(8px); }
+      }
+
+      /* ============ motion guide: reduced motion ============ */
+      @media (prefers-reduced-motion: reduce) {
+        ::view-transition-group(*),
+        ::view-transition-old(*),
+        ::view-transition-new(*) {
+          animation: none !important;
+        }
+        .card { transition: none; }
+      }
+
+      /* ============ Popover detail ============ */
+      #detail {
+        border: 1px solid var(--line);
+        background: var(--surface);
+        color: var(--ink);
+        border-radius: 16px;
+        padding: 0;
+        width: min(92vw, 30rem);
+        max-height: min(84dvh, 40rem);
+        overflow: auto;
+        box-shadow: 0 24px 60px oklch(0 0 0 / 0.35);
+      }
+      #detail::backdrop { background: oklch(0 0 0 / 0.5); }
+      .detail-inner { padding: 22px 22px 20px; }
+      .detail-head {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 12px;
+      }
+      .detail-rank {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: var(--star);
+        letter-spacing: 0.04em;
+      }
+      .detail-name {
+        margin: 2px 0 0;
+        font-size: 1.25rem;
+        font-weight: 800;
+        line-height: 1.35;
+        overflow-wrap: anywhere;
+      }
+      .detail-close {
+        flex: none;
+        width: 2.5rem;
+        height: 2.5rem;
+        border-radius: 10px;
+        border: 1px solid var(--line);
+        background: var(--surface-2);
+        color: var(--ink);
+        cursor: pointer;
+        font-size: 1.05rem;
+        line-height: 1;
+      }
+      .detail-desc { margin: 12px 0 0; color: var(--ink-soft); font-size: 0.94rem; }
+      .detail-stats {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 10px;
+        margin: 16px 0 0;
+      }
+      .detail-stat {
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        padding: 9px 10px;
+        text-align: center;
+      }
+      .detail-stat .v { display: block; font-size: 1.12rem; font-weight: 800; }
+      .detail-stat .v.star { color: var(--star); }
+      .detail-stat .k { display: block; font-size: 0.7rem; color: var(--muted); margin-top: 1px; }
+      .detail-lang { margin: 14px 0 0; font-size: 0.88rem; color: var(--ink-soft); }
+      .detail-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 18px;
+        padding: 10px 18px;
+        min-height: 2.75rem;
+        border-radius: 10px;
+        background: var(--accent);
+        color: var(--accent-ink);
+        font-weight: 700;
+        text-decoration: none;
+      }
+      .detail-link:hover { filter: brightness(1.08); }
+
+      /* ============ Footer ============ */
+      footer {
+        margin-top: 44px;
+        padding-top: 20px;
+        border-top: 1px solid var(--line);
+        color: var(--ink-soft);
+        font-size: 0.86rem;
+      }
+      footer h2 { font-size: 0.98rem; color: var(--ink); margin: 0 0 8px; }
+      footer ul { margin: 0; padding-left: 1.2em; }
+      footer li { margin: 3px 0; }
+      footer code {
+        font-family: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+        font-size: 0.82em;
+        background: var(--surface-2);
+        border: 1px solid var(--line);
+        border-radius: 5px;
+        padding: 0 5px;
+      }
+      .foot-note { margin-top: 14px; color: var(--muted); font-size: 0.8rem; }
+
+      .sr-only {
+        position: absolute;
+        width: 1px; height: 1px;
+        padding: 0; margin: -1px;
+        overflow: hidden;
+        clip: rect(0 0 0 0);
+        white-space: nowrap;
+        border: 0;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <header class="top">
+        <p class="series-line">note連載「GitHubスター急増top10」連動ビューア</p>
+        <h1>GitHubスター急増<span class="star-glyph">★</span>ビューア</h1>
+        <p class="lede">
+          1日でスターが急増したGitHubリポジトリのランキングを眺めるビューアです。
+          2つの集計方法（GitHub Trendingの「stars today」と、GH Archiveを日本時間で自前集計したもの）を切り替えて比べられます。
+          カードをタップすると詳細が開きます。
+        </p>
+      </header>
+
+      <section class="controls" aria-label="表示設定">
+        <div class="control-group">
+          <span class="control-label" id="label-dataset">データセット</span>
+          <div class="segmented" role="group" aria-labelledby="label-dataset">
+            <button type="button" id="btn-ds-a" aria-pressed="true">
+              Trending版<small>2026年11月13日</small>
+            </button>
+            <button type="button" id="btn-ds-b" aria-pressed="false">
+              GH Archive 日本時間版<small>2026年11月12日</small>
+            </button>
+          </div>
+        </div>
+        <div class="control-group">
+          <span class="control-label" id="label-sort">並び替え</span>
+          <div class="segmented" role="group" aria-labelledby="label-sort">
+            <button type="button" id="btn-sort-delta" aria-pressed="true">増分順</button>
+            <button type="button" id="btn-sort-stars" aria-pressed="false">総スター順</button>
+          </div>
+        </div>
+      </section>
+
+      <section class="dataset-meta" aria-label="データセット情報">
+        <h2 id="dataset-title"></h2>
+        <p class="source-note" id="source-note"></p>
+        <p class="warn-note" id="warn-note" hidden></p>
+        <p class="summary-row" id="summary-row"></p>
+      </section>
+
+      <div class="grid-wrap">
+        <ul class="grid" id="grid"></ul>
+      </div>
+
+      <p class="sr-only" role="status" aria-live="polite" id="live-region"></p>
+
+      <footer>
+        <h2>適用したModern Web Guidance</h2>
+        <p>
+          このビューアは、GitHubスター急増1位の Google Chrome 公式リポジトリ
+          <a href="https://github.com/GoogleChrome/modern-web-guidance" target="_blank" rel="noopener">GoogleChrome/modern-web-guidance</a>
+          （Apache-2.0）のガイダンスに沿って構築しました。
+        </p>
+        <ul>
+          <li>ガイド <code>group-element-transitions</code> — 全カード共通の <code>view-transition-class: ranking-card</code> とカード固有の <code>view-transition-name</code> で、並び替えをグループアニメーション化。追加・削除されるカードには <code>:only-child</code> の入場（ease-out）・退場（ease-in）を適用</li>
+          <li>ガイド <code>dynamic-sort</code> — 並び替えとデータセット切替はDOMノードを作り直さず <code>moveBefore()</code> で既存ノードを移動。リスト要素へのスコープ付き <code>startViewTransition</code> を優先し、視覚順とDOM順を一致させ、結果を <code>aria-live</code> で通知</li>
+          <li>ガイド <code>motion</code> — <code>prefers-reduced-motion: reduce</code> で View Transitions のアニメーションを無効化</li>
+          <li>技術: View Transitions / Container Queries（<code>container-type: inline-size</code> と <code>@container</code> で列数を変更）/ Popover API（詳細表示）/ 色は <code>oklch</code> で定義し <code>light-dark()</code> で端末設定に追従 / <code>content-visibility: auto</code> でカード描画を最適化 / <code>scrollbar-color</code> / <code>:focus-visible</code></li>
+        </ul>
+        <p class="foot-note">
+          データ出典は各データセットの注記のとおり。リポジトリ名のリンク先は各リポジトリのGitHubページです。
+        </p>
+      </footer>
+    </div>
+
+    <!-- Detail popover (Popover API) -->
+    <div id="detail" popover="auto" role="dialog" aria-labelledby="detail-name">
+      <div class="detail-inner">
+        <div class="detail-head">
+          <div>
+            <span class="detail-rank" id="detail-rank"></span>
+            <h3 class="detail-name" id="detail-name"></h3>
+          </div>
+          <button type="button" class="detail-close" id="detail-close" aria-label="詳細を閉じる">✕</button>
+        </div>
+        <p class="detail-desc" id="detail-desc"></p>
+        <div class="detail-stats">
+          <div class="detail-stat">
+            <span class="v star num" id="detail-delta"></span>
+            <span class="k">スター増分</span>
+          </div>
+          <div class="detail-stat">
+            <span class="v num" id="detail-stars"></span>
+            <span class="k">総スター数</span>
+          </div>
+          <div class="detail-stat">
+            <span class="v num" id="detail-forks"></span>
+            <span class="k">forks</span>
+          </div>
+        </div>
+        <p class="detail-lang" id="detail-lang"></p>
+        <a class="detail-link" id="detail-link" href="#" target="_blank" rel="noopener">
+          GitHubで開く
+          <svg width="15" height="15" viewBox="0 0 16 16" fill="none" aria-hidden="true">
+            <path d="M6 3h7v7M13 3L7.5 8.5M5 4H3.5A1.5 1.5 0 0 0 2 5.5v7A1.5 1.5 0 0 0 3.5 14h7A1.5 1.5 0 0 0 12 12.5V11" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+          </svg>
+        </a>
+      </div>
+    </div>
+
+    <script>
+      "use strict";
+
+      /* ================= Data (実測の確定値) ================= */
+      var DATASETS = {
+        a: {
+          title: "Trending版（2026年11月13日）",
+          source: "GitHub Trending（daily）を2026年11月13日23時04分（日本時間）に取得し、stars today（GitHubの日次集計＝米国太平洋時間ベースの区切り）の大きい順に並べ替えたもの。",
+          warn: null,
+          items: [
+            { repo: "GoogleChrome/modern-web-guidance-src", delta: 1875, lang: "TypeScript", stars: 4285, forks: 247, desc: "Google Chrome公式。コーディングエージェントに最新のWeb開発ベストプラクティスを覚えさせるためのガイダンス集" },
+            { repo: "we-promise/sure", delta: 944, lang: "Ruby", stars: 14402, forks: 1090, desc: "「みんなのための、みんなで作る」個人向け家計アプリ" },
+            { repo: "openai/codex-security", delta: 754, lang: "TypeScript", stars: 12855, forks: 1008, desc: "OpenAI公式。脆弱性を見つけ、検証し、修正するためのCodex Security CLIとTypeScript SDK" },
+            { repo: "ZhuLinsen/daily_stock_analysis", delta: 272, lang: "Python", stars: 71304, forks: 57224, desc: "LLM駆動の株式分析システム。複数市場の行情データ、リアルタイムニュース、判断用ダッシュボード、自動通知を備える" },
+            { repo: "Likely7/Veyra-NRVideo", delta: 245, lang: "C++", stars: 1447, forks: 66, desc: "Windows向けの動画プレイヤー／キャプチャ強化ツール。AI超解像とフレーム生成を掲げる" },
+            { repo: "alibaba/open-code-review", delta: 206, lang: "Go", stars: 50241, forks: 3727, desc: "Alibaba製のコードレビューツール。Trendingの表示順では1位だったが増分では6位" },
+            { repo: "tailscale/tailcat", delta: 173, lang: "Go", stars: 9238, forks: 426, desc: "netcatをTailscaleのデータプレーン上で動かす道具" },
+            { repo: "backnotprop/plannotator", delta: 100, lang: "TypeScript", stars: 10289, forks: 780, desc: "AIエージェントと協働するためのワークスペース。計画、注釈、レビュー、フィードバック送信ができる" },
+            { repo: "block/buzz", delta: 95, lang: "Rust", stars: 37177, forks: 4931, desc: "Block（旧Square）による「集合知（hive mind）」コミュニケーションプラットフォーム" },
+            { repo: "louislam/uptime-kuma", delta: 61, lang: "JavaScript", stars: 93657, forks: 8711, desc: "定番のセルフホスト型の監視ツール" },
+            { repo: "tradermonty/claude-trading-skills", delta: 60, lang: "Python", stars: 3921, forks: null, desc: "Claude Code向けトレーディング用skills集", extra: true },
+            { repo: "ChromeDevTools/chrome-devtools-mcp", delta: 60, lang: "TypeScript", stars: 55252, forks: null, desc: "コーディングエージェントからChrome DevToolsを使うためのMCP", extra: true }
+          ]
+        },
+        b: {
+          title: "GH Archive 日本時間版（2026年11月12日）",
+          source: "GH Archiveのスターイベント（WatchEvent）を日本時間2026年11月12日0:00〜24:00で自前集計したもの。",
+          warn: "注意: この検証環境のフィードは小規模なサンプルのため、絶対数は本番GitHubの水準ではありません。集計方法の検証用データです。",
+          items: [
+            { repo: "aws/aws-emulator", delta: 60, lang: "Rust", stars: 6428, forks: 240, desc: "AWS APIのローカルエミュレータ" },
+            { repo: "morluto/rea", delta: 35, lang: "TypeScript", stars: 456727, forks: 112133, desc: "エージェントで何でもリバースエンジニアリングするツール" },
+            { repo: "GoogleChrome/modern-web-guidance", delta: 34, lang: null, stars: 9776, forks: 333, desc: "コーディングエージェント向けに最新のWebベストプラクティスを提供するガイダンス（このビューアの構築に使ったガイダンスの本体リポジトリ）" },
+            { repo: "janestreet/agent_skills", delta: 25, lang: null, stars: 8082, forks: 526, desc: "Jane Streetのエージェントスキル集" },
+            { repo: "storytold/craft-anything", delta: 23, lang: "Rust", stars: 31038, forks: 6338, desc: "ソフトウェアの仕組みを理解し自分のものを作るためのツール" },
+            { repo: "meta/astryx", delta: 23, lang: "TypeScript", stars: 27186, forks: 2106, desc: "カスタマイズ可能でエージェント対応のオープンソース・デザインシステム" },
+            { repo: "pingdotgg/t3code", delta: 21, lang: "TypeScript", stars: 59134, forks: 10759, desc: "Claude CodeやCodexを任意のPC・スマホから操作するツール" },
+            { repo: "Ebony-Vinyl/dsh-our-free-model", delta: 20, lang: "JavaScript", stars: 72418, forks: 1987, desc: "dsh用プラグイン（ログイン不要でDeepSeek等のモデルを無料利用）" },
+            { repo: "Lee-xeo/Claude-Cage", delta: 19, lang: "Go", stars: 5174, forks: 574, desc: "Claude専用の軽量仮想マシン環境" },
+            { repo: "addyosmani/agent-skills", delta: 17, lang: "JavaScript", stars: 117018, forks: null, desc: "エージェント向けスキル集" }
+          ]
+        }
+      };
+
+      var LANG_COLORS = {
+        "TypeScript": "#3178c6",
+        "Ruby": "#cc342d",
+        "Python": "#4b8bbe",
+        "C++": "#f34b7d",
+        "Go": "#00add8",
+        "Rust": "#dea584",
+        "JavaScript": "#e8d44d"
+      };
+
+      var fmt = new Intl.NumberFormat("ja-JP");
+      function fmtSigned(n) { return "+" + fmt.format(n); }
+      function fmtOrDash(n) { return n === null || n === undefined ? "—" : fmt.format(n); }
+
+      var grid = document.getElementById("grid");
+      var liveRegion = document.getElementById("live-region");
+      var popover = document.getElementById("detail");
+
+      var state = { dataset: "a", sort: "delta" };
+
+      /* ============ Card creation (once; nodes are reused) ============ */
+      function starSvg() {
+        return '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 1.6l1.95 4.1 4.5.55-3.3 3.1.85 4.45L8 11.65l-4 2.15.85-4.45-3.3-3.1 4.5-.55L8 1.6z"/></svg>';
+      }
+      function forkSvg() {
+        return '<svg width="13" height="13" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M5 3a2 2 0 1 1 .9 3.55V8h4.2V6.55A2 2 0 1 1 12 3.55c-.28.08-.55.2-.79.35a3 3 0 0 1-1.42 2.65v1.95a2 2 0 0 1-2 2H8.2v1.45A2 2 0 1 1 6.4 12h1.4V9.5H6a2 2 0 0 1-2-2V6.55A3 3 0 0 1 2.79 3.9 2.02 2.02 0 0 1 2 3a2 2 0 0 1 3 0zm0 1.5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zm6 0a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1zM7.1 13.5a.5.5 0 1 0 0-1 .5.5 0 0 0 0 1z" transform="scale(0.92)"/></svg>';
+      }
+
+      function createCard(item, datasetKey) {
+        var li = document.createElement("li");
+        li.className = "card" + (item.extra ? " is-extra" : "");
+        li.tabIndex = 0;
+        li.setAttribute("role", "button");
+        li.setAttribute("aria-haspopup", "dialog");
+        // group-element-transitions: unique name + shared class (class is in CSS)
+        li.style.viewTransitionName = "vt-" + datasetKey + "-" + item.repo.replace(/[^a-zA-Z0-9]+/g, "-");
+        li._item = item;
+
+        var parts = item.repo.split("/");
+        var owner = parts[0], name = parts.slice(1).join("/");
+        var langColor = item.lang ? (LANG_COLORS[item.lang] || "#8b949e") : "#8b949e";
+
+        var html = "";
+        html += '<div class="card-top">';
+        html += '<span class="rank num" data-rank></span>';
+        html += '<div class="delta"><span class="delta-value num">' + fmtSigned(item.delta) + '</span>' +
+                '<span class="delta-label">スター増分</span></div>';
+        html += '</div>';
+        html += '<div class="delta-bar" aria-hidden="true"><i data-bar></i></div>';
+        html += '<h3 class="repo-name"><a href="https://github.com/' + item.repo + '" target="_blank" rel="noopener">' +
+                '<span class="repo-owner">' + owner + '/</span>' + name + '</a>' +
+                (item.extra ? ' <span class="extra-tag">番外・11位タイ</span>' : '') + '</h3>';
+        html += '<p class="desc"></p>';
+        html += '<div class="card-foot">';
+        if (item.lang) {
+          html += '<span class="lang-chip"><span class="lang-dot" style="background:' + langColor + '"></span>' + item.lang + '</span>';
+        } else {
+          html += '<span class="lang-chip">言語情報なし</span>';
+        }
+        html += '<span class="stat">' + starSvg() + '<span class="num">' + fmt.format(item.stars) + '</span></span>';
+        html += '<span class="stat">' + forkSvg() + '<span class="num">' + fmtOrDash(item.forks) + '</span></span>';
+        html += '<span class="detail-hint">タップで詳細</span>';
+        html += '</div>';
+
+        li.innerHTML = html;
+        li.querySelector(".desc").textContent = item.desc;
+
+        li.addEventListener("click", function (ev) {
+          if (ev.target.closest("a")) return; // repo link keeps its own behavior
+          openDetail(li);
+        });
+        li.addEventListener("keydown", function (ev) {
+          if (ev.key === "Enter" || ev.key === " ") {
+            ev.preventDefault();
+            openDetail(li);
+          }
+        });
+        return li;
+      }
+
+      // Build every card node exactly once and keep them in a pool.
+      var pool = {};
+      Object.keys(DATASETS).forEach(function (key) {
+        pool[key] = DATASETS[key].items.map(function (item) { return createCard(item, key); });
+      });
+
+      /* ============ Popover detail ============ */
+      function openDetail(cardEl) {
+        var item = cardEl._item;
+        var rankText = cardEl.querySelector("[data-rank]").textContent;
+        document.getElementById("detail-rank").textContent =
+          DATASETS[state.dataset].title + " ・ " + rankText + "位";
+        document.getElementById("detail-name").textContent = item.repo;
+        document.getElementById("detail-desc").textContent = item.desc;
+        document.getElementById("detail-delta").textContent = fmtSigned(item.delta);
+        document.getElementById("detail-stars").textContent = fmt.format(item.stars);
+        document.getElementById("detail-forks").textContent = fmtOrDash(item.forks);
+        document.getElementById("detail-lang").textContent =
+          "主な言語: " + (item.lang ? item.lang : "情報なし");
+        var link = document.getElementById("detail-link");
+        link.href = "https://github.com/" + item.repo;
+        if (typeof popover.showPopover === "function") {
+          if (popover.matches(":popover-open")) popover.hidePopover();
+          popover.showPopover();
+        }
+      }
+      document.getElementById("detail-close").addEventListener("click", function () {
+        if (typeof popover.hidePopover === "function") popover.hidePopover();
+      });
+
+      /* ============ dynamic-sort: reorder with moveBefore() ============ */
+      function sortedNodes() {
+        var nodes = pool[state.dataset].slice();
+        var key = state.sort;
+        nodes.sort(function (x, y) {
+          var d = (key === "delta" ? y._item.delta - x._item.delta
+                                   : y._item.stars - x._item.stars);
+          if (d !== 0) return d;
+          return y._item.delta - x._item.delta;
+        });
+        return nodes;
+      }
+
+      function moveNodeBefore(parent, node, ref) {
+        // Prefer moveBefore() (preserves element state per dynamic-sort guide);
+        // fall back to insertBefore when unavailable.
+        if (typeof parent.moveBefore === "function" && node.parentNode === parent) {
+          try { parent.moveBefore(node, ref || null); return; } catch (e) { /* fall through */ }
+        }
+        parent.insertBefore(node, ref || null);
+      }
+
+      function applyOrder() {
+        var nodes = sortedNodes();
+        var keep = {};
+        nodes.forEach(function (n) { keep[n.style.viewTransitionName] = true; });
+
+        // Detach cards of the other dataset (nodes themselves are kept in the pool).
+        Array.prototype.slice.call(grid.children).forEach(function (child) {
+          if (!keep[child.style.viewTransitionName]) grid.removeChild(child);
+        });
+        // Attach nodes that are not in the grid yet.
+        nodes.forEach(function (n) {
+          if (n.parentNode !== grid) grid.appendChild(n);
+        });
+        // Reorder in place with moveBefore() so DOM order == visual order.
+        for (var i = 0; i < nodes.length; i++) {
+          var current = grid.children[i];
+          if (current !== nodes[i]) moveNodeBefore(grid, nodes[i], current || null);
+        }
+
+        // Update rank badges (competition ranking on the active sort key) and bars.
+        var key = state.sort;
+        var maxDelta = Math.max.apply(null, DATASETS[state.dataset].items.map(function (it) { return it.delta; }));
+        var prevVal = null, prevRank = 0;
+        nodes.forEach(function (n, idx) {
+          var val = key === "delta" ? n._item.delta : n._item.stars;
+          var rank = (val === prevVal) ? prevRank : idx + 1;
+          prevVal = val; prevRank = rank;
+          n.querySelector("[data-rank]").textContent = rank;
+          n.classList.toggle("is-top", rank === 1);
+          n.querySelector("[data-bar]").style.width =
+            Math.max(4, Math.round(n._item.delta / maxDelta * 100)) + "%";
+          n.setAttribute("aria-label",
+            rank + "位 " + n._item.repo + "、スター増分 " + fmtSigned(n._item.delta) +
+            "、総スター " + fmt.format(n._item.stars) + "。詳細を開く");
+        });
+      }
+
+      function runTransition(updateFn) {
+        // Scoped view transition on the list element first (dynamic-sort guide),
+        // then document-level, then no transition.
+        var vt = null;
+        if (typeof grid.startViewTransition === "function") {
+          vt = grid.startViewTransition(updateFn);
+        } else if (typeof document.startViewTransition === "function") {
+          vt = document.startViewTransition(updateFn);
+        } else {
+          updateFn();
+          return;
+        }
+        // A capture can be aborted (e.g. prepaint check); swallow those
+        // rejections so they never surface as uncaught errors. The DOM
+        // update itself has already been applied either way.
+        if (vt) {
+          ["ready", "finished", "updateCallbackDone"].forEach(function (k) {
+            if (vt[k] && typeof vt[k].catch === "function") vt[k].catch(function () {});
+          });
+        }
+      }
+
+      function updateMeta() {
+        var ds = DATASETS[state.dataset];
+        document.getElementById("dataset-title").textContent = ds.title;
+        document.getElementById("source-note").textContent = ds.source;
+        var warn = document.getElementById("warn-note");
+        if (ds.warn) { warn.textContent = ds.warn; warn.hidden = false; }
+        else { warn.hidden = true; }
+
+        var items = ds.items;
+        var totalDelta = items.reduce(function (s, it) { return s + it.delta; }, 0);
+        var top = items.reduce(function (m, it) { return it.delta > m.delta ? it : m; }, items[0]);
+        document.getElementById("summary-row").innerHTML =
+          '<span>全 <b class="num">' + items.length + '</b> 件</span>' +
+          '<span>増分の合計 <b class="num">' + fmtSigned(totalDelta) + '</b></span>' +
+          '<span>最大の増分 <b class="hl num">' + fmtSigned(top.delta) + '</b>（' + top.repo + '）</span>';
+      }
+
+      function refresh(announceText) {
+        runTransition(function () {
+          updateMeta();
+          applyOrder();
+        });
+        // Announce the result to screen readers (aria-live="polite").
+        var nodes = sortedNodes();
+        liveRegion.textContent =
+          announceText + " 1位は " + nodes[0]._item.repo +
+          "（スター増分 " + fmtSigned(nodes[0]._item.delta) + "）です。";
+      }
+
+      /* ============ Controls ============ */
+      var btnDsA = document.getElementById("btn-ds-a");
+      var btnDsB = document.getElementById("btn-ds-b");
+      var btnSortDelta = document.getElementById("btn-sort-delta");
+      var btnSortStars = document.getElementById("btn-sort-stars");
+
+      function setPressed() {
+        btnDsA.setAttribute("aria-pressed", state.dataset === "a" ? "true" : "false");
+        btnDsB.setAttribute("aria-pressed", state.dataset === "b" ? "true" : "false");
+        btnSortDelta.setAttribute("aria-pressed", state.sort === "delta" ? "true" : "false");
+        btnSortStars.setAttribute("aria-pressed", state.sort === "stars" ? "true" : "false");
+      }
+      var SORT_LABEL = { delta: "増分順", stars: "総スター順" };
+
+      btnDsA.addEventListener("click", function () {
+        if (state.dataset === "a") return;
+        state.dataset = "a"; setPressed();
+        refresh("データセットを「" + DATASETS.a.title + "」に切り替え、" + SORT_LABEL[state.sort] + "で表示しました。");
+      });
+      btnDsB.addEventListener("click", function () {
+        if (state.dataset === "b") return;
+        state.dataset = "b"; setPressed();
+        refresh("データセットを「" + DATASETS.b.title + "」に切り替え、" + SORT_LABEL[state.sort] + "で表示しました。");
+      });
+      btnSortDelta.addEventListener("click", function () {
+        if (state.sort === "delta") return;
+        state.sort = "delta"; setPressed();
+        refresh("「" + DATASETS[state.dataset].title + "」を増分順に並び替えました。");
+      });
+      btnSortStars.addEventListener("click", function () {
+        if (state.sort === "stars") return;
+        state.sort = "stars"; setPressed();
+        refresh("「" + DATASETS[state.dataset].title + "」を総スター順に並び替えました。");
+      });
+
+      /* ============ Initial render ============ */
+      setPressed();
+      updateMeta();
+      applyOrder();
+    </script>
+  </body>
+</html>
